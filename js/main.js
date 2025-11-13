@@ -20,6 +20,11 @@ const backBtn = document.getElementById('backBtn');
 
 let scene, camera, renderer, controls, currentObject;
 
+const raycaster = new THREE.Raycaster();
+const clickMouse = new THREE.Vector2();
+const moveMouse = new THREE.Vector2();
+var draggable;
+
 // --- Selector view ---
 function initSelector() {
   selectorDiv.innerHTML = '';
@@ -55,10 +60,22 @@ async function loadViewer(modelName) {
   const dirLight = new THREE.DirectionalLight(0xffffff, 1);
   dirLight.position.set(1, 1, 1);
   scene.add(dirLight);
+  scene.background = new THREE.Color(0x82DEED);
+
+  // Load floor
+  const floorGeometry = new THREE.BoxGeometry(150, 0.5, 100);
+  const floorMaterial = new THREE.MeshBasicMaterial({color: 0xC9BFBD});
+  const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+  scene.add(floor);
+  floor.position.y = -0.25;
+  floor.userData.draggable = false;
+  floor.userData.name = "FLOOR"
+  floor.userData.ground = true;
 
   // Load OBJ
   currentObject = await loadOBJ(`/assets/models/${modelName}`);
   scene.add(currentObject);
+  currentObject.userData.draggable = true;
 
   // Center and scale object
   const box = new THREE.Box3().setFromObject(currentObject);
@@ -77,14 +94,78 @@ async function loadViewer(modelName) {
     currentObject.scale.set(scaleFactor, scaleFactor, scaleFactor);
   }
 
+  // bringing object to level
+  currentObject.position.y = (-1 * box.min.y);
+
   // Adjust camera distance based on object size
   camera.position.set(0, 0, maxDim * 1.5);
+  camera.translateY(-1 * box.min.y);
   controls.target.set(0, 0, 0);
   controls.update();
+
 
   animate();
   window.addEventListener('resize', onWindowResize);
 }
+
+const onMouseClick = (event) => {
+    if(draggable) {
+        console.log(`dropping ${draggable.userData.name}`);
+        draggable = null;
+        return;
+    }
+
+    clickMouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    clickMouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(clickMouse, camera);
+    const found = raycaster.intersectObjects(scene.children, true);
+
+    if (found.length > 0){
+        let current = found[0].object;
+        while(current.parent.parent !== null){
+            current = current.parent;
+        }
+        if(current.userData.draggable){
+            draggable = current;
+        }
+        console.log(`found draggable object ${draggable.userData.name}`);
+    }
+
+}
+
+const onMouseMove = (event) => {
+    moveMouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    moveMouse.y = - (event.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(moveMouse, camera);
+    const intersects = raycaster.intersectObjects(scene.children)
+
+    for (let i = 0; i < intersects.length; i++){
+        console.log(intersects[i].object.userData.name);
+    }
+}
+
+function dragObject(){
+    if(draggable != null){
+        raycaster.setFromCamera(moveMouse, camera);
+        const found = raycaster.intersectObjects(scene.children);
+        if(found.length > 0) {
+            for (let o of found) {
+                if(!o.object.userData.ground){
+                    continue;
+                }
+                else{
+                    draggable.position.x = o.point.x;
+                    draggable.position.z = o.point.z;
+                }
+            }
+        }
+    }
+}
+
+
+// mouse movement
+window.addEventListener('mousemove', onMouseMove);
+window.addEventListener('click', onMouseClick);
 
 
 // --- Back button ---
@@ -100,6 +181,9 @@ backBtn.addEventListener('click', () => {
 // --- Animation loop ---
 function animate(){
   requestAnimationFrame(animate);
+
+  dragObject();
+
   if(controls) controls.update();
   renderer.render(scene, camera);
 }
