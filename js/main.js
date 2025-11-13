@@ -63,7 +63,7 @@ async function loadViewer(modelName) {
   scene.background = new THREE.Color(0x82DEED);
 
   // Load floor
-  const floorGeometry = new THREE.BoxGeometry(150, 0.5, 100);
+  const floorGeometry = new THREE.BoxGeometry(10000, 0.5, 100000);
   const floorMaterial = new THREE.MeshBasicMaterial({color: 0xC9BFBD});
   const floor = new THREE.Mesh(floorGeometry, floorMaterial);
   scene.add(floor);
@@ -98,8 +98,8 @@ async function loadViewer(modelName) {
   currentObject.position.y = (-1 * box.min.y);
 
   // Adjust camera distance based on object size
-  camera.position.set(0, 0, maxDim * 1.5);
-  camera.translateY(-1 * box.min.y);
+  camera.position.set(0, 0, maxDim * 2.0);
+  camera.translateY(box.max.y);
   controls.target.set(0, 0, 0);
   controls.update();
 
