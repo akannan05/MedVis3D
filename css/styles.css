@@ -1,30 +1,91 @@
-body { margin:0; font-family:sans-serif; }
-#selector {
+body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; background:#111; color:#eee; }
+
+/* General layout */
+#viewer { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+#viewer canvas { position: absolute; left: 0; top: 0; width:100%; height:100%; display:block; z-index: 1; }
+
+/* Selector area (fallback) */
+#selector { display:none; flex-wrap:wrap; gap:10px; padding:20px; }
+.model-btn { padding:10px 20px; background:#4CAF50; color:white; border:none; cursor:pointer; border-radius:5px; }
+
+/* ---------------------------------------------
+   Folder modal (top-left dropdown)
+   Acts like a modal that drops down from top-left
+   --------------------------------------------- */
+#folderView { position: fixed; left: 12px; top: 64px; z-index: 99; opacity: 0; transform: translateY(-10px) scale(0.95); pointer-events: none; transition: opacity 0.2s ease, transform 0.2s ease; }
+#folderView.open { opacity: 1; transform: translateY(0) scale(1); pointer-events: auto; }
+#folderViewContainer { min-width: 300px; max-width: 360px; }
+#folderView .organ-item { background: rgba(20,20,20,0.95); color: #f1f1f1; border-radius: 8px; margin-bottom: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.8); overflow: hidden; }
+.organ-toggle { display:flex; align-items:center; gap:8px; padding:12px 14px; cursor:pointer; user-select:none; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.organ-toggle .arrow { display:inline-block; transition: transform 0.18s ease; color:#aab; }
+.organ-toggle:hover { background: rgba(255,255,255,0.04); }
+.id-list { background: rgba(255,255,255,0.01); max-height: 300px; overflow:auto; padding:4px 4px; }
+.id-list .id-item { display:block; padding:10px 12px; margin:2px 4px; background: rgba(255,255,255,0.03); border-radius:6px; cursor:pointer; color:#ddd; font-size:13px; transition: all 0.12s ease; }
+.id-list .id-item:hover { background: rgba(255,255,255,0.08); transform: translateX(4px); }
+
+/* small toggle that shows/hides folder view */
+#folderViewToggle { position:fixed; left:12px; top:12px; z-index:100; width:40px; height:40px; border-radius:6px; border:none; background: rgba(255,255,255,0.08); color:#fff; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:20px; transition: background 0.2s ease; }
+#folderViewToggle:hover { background: rgba(255,255,255,0.12); }
+
+/* ---------------------------------------------
+   Left toolbar: square tool buttons stacked vertically
+   --------------------------------------------- */
+#leftSidebar { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); z-index: 50; display:flex; flex-direction:column; gap:10px; }
+#leftSidebar button { width:56px; height:56px; display:flex; align-items:center; justify-content:center; background: rgba(255,255,255,0.03); color:#fff; border:1px solid rgba(255,255,255,0.06); border-radius:8px; cursor:pointer; font-weight:600; font-size:11px; line-height:1.2; padding:4px; text-align:center; word-break:break-word; box-shadow: 0 6px 18px rgba(0,0,0,0.6); transition: all 0.2s ease; }
+#leftSidebar button:hover { background: rgba(255,255,255,0.06); transform: translateY(-2px); }
+#leftSidebar button.active { background: linear-gradient(180deg,#36a3ff,#0b7bd6); box-shadow: 0 8px 24px rgba(11,123,214,0.25); }
+
+/* Ensure text labels inside the square buttons fit */
+#leftSidebar button span { font-size:12px; line-height:1; }
+
+/* Compact labels (if JS uses plain text) */
+#leftSidebar .tool-label { font-size:11px; pointer-events:none; }
+
+/* ---------------------------------------------
+   Bounding box toggle (top-right square)
+   --------------------------------------------- */
+#boundingBoxBtn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 48px;
+  height: 48px;
+  background: rgba(255,255,255,0.03);
+  border:1px solid rgba(255,255,255,0.06);
+  border-radius:8px;
+  color:#fff;
+  cursor:pointer;
   display:flex;
-  flex-wrap:wrap;
-  gap:10px;
-  padding:20px;
+  align-items:center;
+  justify-content:center;
+  z-index:60;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.6);
 }
-.model-btn {
-  padding:10px 20px;
-  background:#4CAF50;
-  color:white;
-  border:none;
-  cursor:pointer;
-  border-radius:5px;
+#boundingBoxBtn:hover { background: rgba(255,255,255,0.06); }
+
+/* ---------------------------------------------
+   Move telemetry panel (right side)
+   When in move state, `#moveTelemetry` is created by JS
+   --------------------------------------------- */
+#moveTelemetry { position: absolute; right: 12px; top: 80px; width: 260px; max-width: 40vw; background: rgba(10,10,12,0.88); color:#dfe; padding:12px; border-radius:10px; border: 1px solid rgba(255,255,255,0.04); z-index:55; box-shadow: 0 10px 30px rgba(0,0,0,0.6); font-size:13px; }
+#moveTelemetry .telemetry-title { font-weight:700; color:#fff; margin-bottom:8px; }
+#moveTelemetry .telemetry-section { margin:6px 0; }
+#moveTelemetry .telemetry-label { color:#9aa; font-size:12px; margin-bottom:6px; }
+#moveTelemetry .telemetry-value { color:#cfe; font-family: monospace; font-size:12px; margin:2px 0; }
+
+/* Corner indicator spheres are THREE meshes; keep pointer events off for overlays */
+#scissorCursor, #cutLineSvg { pointer-events: none; }
+
+/* Small utilities */
+.hidden { display:none !important; }
+
+/* Back button removed - hidden to keep only bounding box button */
+#backBtn { display: none !important; }
+
+/* Responsive tweaks */
+@media (max-width: 640px) {
+  #leftSidebar { left: 8px; }
+  #folderViewContainer { min-width: 220px; max-width: 88vw; }
+  #moveTelemetry { width: 200px; right: 8px; }
 }
-#viewer canvas { width:100vw; height:100vh; display:block; }
-#backBtn {
-  position:absolute;
-  top:20px;
-  right:20px;
-  width:50px;
-  height:50px;
-  background:red;
-  border:none;
-  border-radius:50%;
-  color:white;
-  font-size:24px;
-  cursor:pointer;
-  z-index:10;
-}
+

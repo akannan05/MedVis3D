@@ -9,7 +9,7 @@ from skimage import measure
 import trimesh
 import nibabel as nib
 
-logging.basicConfig(level=logging.INFO, format='[%levelname)s] %(message)')
+logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -79,7 +79,6 @@ def visualize_spleen(viz_type: str, viz_index: int, max_index: int, data_dict):
     verts[:, 2] *= spacing[2]
 
     mesh = trimesh.Trimesh(vertices=verts, faces=faces)
-    # mesh = mesh.simplify_quadric_decimation(20000)
     mesh.export(f"spleen_{viz_index}.obj")
 
 if __name__ == "__main__":

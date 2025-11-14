@@ -3,6 +3,7 @@
 
 # Base path to datasets
 BASE_PATH="../assets/data"
+ENV_PATH="../.venv/Scripts/python.exe"
 
 # Loop over all directories inside the base path
 for DATA_DIR in "$BASE_PATH"/*/; do
@@ -21,6 +22,6 @@ for DATA_DIR in "$BASE_PATH"/*/; do
     # Loop over indices 0 to 41
     for IDX in $(seq 0 40); do
         echo "Processing $JSON_PATH with index $IDX..."
-        python3 nifti_loader.py --path="$JSON_PATH" --type="training" $IDX
+        "$ENV_PATH" nifti_loader.py --path="$JSON_PATH" --type="training" $IDX
     done
 done
