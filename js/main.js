@@ -242,7 +242,7 @@ function _performCut(pStart, pEnd){
   cloneB.scale.copy(sourceObject.scale);
   cloneB.updateMatrixWorld(true);
   cloneB.position.addScaledVector(normal, -gap);
-  cloneB.visible = true;
+  cloneB.visible = false;
 
   scene.add(cloneA);
   scene.add(cloneB);
@@ -1158,7 +1158,7 @@ function _updatePhysics(delta){
   }
 
   if(mode === 'cut') {
-    _constrainToBounds();
+   // _constrainToBounds();
   }
 
   _updateBoundingBoxVisualization();
