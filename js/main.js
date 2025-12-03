@@ -19,6 +19,7 @@ let models = [];
 let currentModelName = null;
 let mode = 'default'; // 'default' | 'cut'
 let _sceneInitialized = false;
+let visibleClone = true;  // true = cloneA, false = cloneB
 
 // Physics State
 let _velocity = new THREE.Vector3();
@@ -235,14 +236,14 @@ function _performCut(pStart, pEnd){
   cloneA.scale.copy(sourceObject.scale);
   cloneA.updateMatrixWorld(true);
   cloneA.position.addScaledVector(normal, gap);
-  cloneA.visible = true;
+  cloneA.visible = visibleClone;
 
   cloneB.position.copy(sourceObject.position);
   cloneB.quaternion.copy(sourceObject.quaternion);
   cloneB.scale.copy(sourceObject.scale);
   cloneB.updateMatrixWorld(true);
   cloneB.position.addScaledVector(normal, -gap);
-  cloneB.visible = false;
+  cloneB.visible = !visibleClone;
 
   scene.add(cloneA);
   scene.add(cloneB);
@@ -268,6 +269,20 @@ function _applyClippingMaterial(obj, plane) {
       node.material = Array.isArray(node.material) ? clonedMats : clonedMats[0];
     }
   });
+}
+
+// press C to toggle between the 2 slices
+window.addEventListener('keydown', cloneChange);
+function cloneChange(event){
+  console.log("went to C");
+  if(event.key === 'C' || event.key === 'c'){
+    visibleClone = !visibleClone;
+    console.log(visibleClone);
+    if(_cutState.clones && _cutState.clones.length > 0){
+      _cutState.clones[0].visible = visibleClone;
+      _cutState.clones[1].visible = !visibleClone
+    }
+  }
 }
 
 // =============================================================================
