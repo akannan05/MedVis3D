@@ -274,7 +274,6 @@ function _applyClippingMaterial(obj, plane) {
 // press C to toggle between the 2 slices
 window.addEventListener('keydown', cloneChange);
 function cloneChange(event){
-  console.log("went to C");
   if(event.key === 'C' || event.key === 'c'){
     visibleClone = !visibleClone;
     console.log(visibleClone);
@@ -845,6 +844,7 @@ function _onMoveKeyUp(event) {
 function enterMoveMode() {
   if(!currentObject || !_readyForCut()) return;
   if(mode === 'move') return;
+  if(mode === 'cut') exitCutMode();
   mode = 'move';
 
   // Setup orbit controls for move mode (right-click to rotate)
@@ -1023,6 +1023,9 @@ function _onMoveMouseUp(event) {
 function enterCutMode(){
   if(!currentObject || !_readyForCut()) return;
   if(mode === 'cut') return;
+  console.log("Enter cut");
+  console.log(mode);
+  console.log(_readyForCut());
   mode = 'cut';
   
   const box = new THREE.Box3().setFromObject(currentObject);
@@ -1085,7 +1088,13 @@ function enterCutMode(){
   currentObject.position.y = Math.max(currentObject.position.y, planeY + correction + 0.001);
   
   const sc = document.getElementById('scissorCursor');
-  if(sc) sc.style.display = 'block';
+  console.log(sc);
+  console.log('1090');
+  if(sc){
+     sc.style.display = 'block';
+     console.log('scissors');
+
+  }
   viewerDiv.addEventListener('pointermove', _onCutPointerMove);
   viewerDiv.addEventListener('pointerdown', _onCutPointerDown);
   window.addEventListener('pointerup', _onCutPointerUp);
