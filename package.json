@@ -11,6 +11,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "nifti-reader-js": "^0.8.0",
     "three": "^0.180.0"
   },
   "devDependencies": {
