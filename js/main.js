@@ -12,7 +12,7 @@ const viewerDiv = document.getElementById('viewer');
 const folderViewDiv = document.getElementById('folderView');
 
 // Scene Graph
-let scene, camera, renderer, controls, currentObject, currentObjectFile;
+let scene, camera, renderer, controls, currentObject;
 
 // Global State
 let models = [];
@@ -329,9 +329,8 @@ function initSelector() {
       idItem.onclick = (e) => {
         e.stopPropagation();
         const modelFile = `${organName}_${id}.obj`;
-        currentObjectFile = modelFile;
         folderViewDiv.classList.remove('open');
-        loadViewer(currentObjectFile);
+        loadViewer(modelFile);
       };
       idList.appendChild(idItem);
     });
