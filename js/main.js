@@ -19,6 +19,7 @@ let models = [];
 let currentModelName = null;
 let mode = 'default'; // 'default' | 'cut'
 let _sceneInitialized = false;
+let visibleClone = true;  // true = cloneA, false = cloneB
 
 // Physics State
 let _velocity = new THREE.Vector3();
@@ -127,7 +128,7 @@ function _updateRaycastPoint(e, cb){
   const objectToRaycast = (_cutState.clones && _cutState.clones.length > 0) 
     ? _cutState.clones 
     : currentObject;
-  
+    
   const intersects = _cutHandlers.raycaster.intersectObject(objectToRaycast, true);
   
   if(intersects && intersects.length > 0){
@@ -235,14 +236,14 @@ function _performCut(pStart, pEnd){
   cloneA.scale.copy(sourceObject.scale);
   cloneA.updateMatrixWorld(true);
   cloneA.position.addScaledVector(normal, gap);
-  cloneA.visible = true;
+  cloneA.visible = visibleClone;
 
   cloneB.position.copy(sourceObject.position);
   cloneB.quaternion.copy(sourceObject.quaternion);
   cloneB.scale.copy(sourceObject.scale);
   cloneB.updateMatrixWorld(true);
   cloneB.position.addScaledVector(normal, -gap);
-  cloneB.visible = true;
+  cloneB.visible = !visibleClone;
 
   scene.add(cloneA);
   scene.add(cloneB);
@@ -268,6 +269,19 @@ function _applyClippingMaterial(obj, plane) {
       node.material = Array.isArray(node.material) ? clonedMats : clonedMats[0];
     }
   });
+}
+
+// press C to toggle between the 2 slices
+window.addEventListener('keydown', cloneChange);
+function cloneChange(event){
+  if(event.key === 'C' || event.key === 'c'){
+    visibleClone = !visibleClone;
+    console.log(visibleClone);
+    if(_cutState.clones && _cutState.clones.length > 0){
+      _cutState.clones[0].visible = visibleClone;
+      _cutState.clones[1].visible = !visibleClone
+    }
+  }
 }
 
 // =============================================================================
@@ -426,6 +440,7 @@ function _createCutUI() {
 
 async function handleToolClick(tool) {
   if (tool === 'Cut') {
+    if(currentModelName) await loadViewer(currentModelName);
     enterCutMode();
   } else if (tool === 'Move') {
     enterMoveMode();
@@ -830,6 +845,7 @@ function _onMoveKeyUp(event) {
 function enterMoveMode() {
   if(!currentObject || !_readyForCut()) return;
   if(mode === 'move') return;
+  if(mode === 'cut') exitCutMode();
   mode = 'move';
 
   // Setup orbit controls for move mode (right-click to rotate)
@@ -1009,6 +1025,9 @@ function enterCutMode(){
   if(!currentObject || !_readyForCut()) return;
   if(mode === 'cut') return;
   mode = 'cut';
+
+
+
   
   const box = new THREE.Box3().setFromObject(currentObject);
   const size = new THREE.Vector3();
@@ -1070,7 +1089,9 @@ function enterCutMode(){
   currentObject.position.y = Math.max(currentObject.position.y, planeY + correction + 0.001);
   
   const sc = document.getElementById('scissorCursor');
-  if(sc) sc.style.display = 'block';
+  if(sc){
+     sc.style.display = 'block';
+  }
   viewerDiv.addEventListener('pointermove', _onCutPointerMove);
   viewerDiv.addEventListener('pointerdown', _onCutPointerDown);
   window.addEventListener('pointerup', _onCutPointerUp);
@@ -1158,7 +1179,7 @@ function _updatePhysics(delta){
   }
 
   if(mode === 'cut') {
-    _constrainToBounds();
+   // _constrainToBounds();
   }
 
   _updateBoundingBoxVisualization();
