@@ -12,7 +12,7 @@ const viewerDiv = document.getElementById('viewer');
 const folderViewDiv = document.getElementById('folderView');
 
 // Scene Graph
-let scene, camera, renderer, controls, currentObject;
+let scene, camera, renderer, controls, currentObject, currentObjectFile;
 
 // Global State
 let models = [];
@@ -128,7 +128,7 @@ function _updateRaycastPoint(e, cb){
   const objectToRaycast = (_cutState.clones && _cutState.clones.length > 0) 
     ? _cutState.clones 
     : currentObject;
-  
+    
   const intersects = _cutHandlers.raycaster.intersectObject(objectToRaycast, true);
   
   if(intersects && intersects.length > 0){
@@ -329,8 +329,9 @@ function initSelector() {
       idItem.onclick = (e) => {
         e.stopPropagation();
         const modelFile = `${organName}_${id}.obj`;
+        currentObjectFile = modelFile;
         folderViewDiv.classList.remove('open');
-        loadViewer(modelFile);
+        loadViewer(currentObjectFile);
       };
       idList.appendChild(idItem);
     });
@@ -440,6 +441,7 @@ function _createCutUI() {
 
 async function handleToolClick(tool) {
   if (tool === 'Cut') {
+    if(currentModelName) await loadViewer(currentModelName);
     enterCutMode();
   } else if (tool === 'Move') {
     enterMoveMode();
@@ -1023,10 +1025,10 @@ function _onMoveMouseUp(event) {
 function enterCutMode(){
   if(!currentObject || !_readyForCut()) return;
   if(mode === 'cut') return;
-  console.log("Enter cut");
-  console.log(mode);
-  console.log(_readyForCut());
   mode = 'cut';
+
+
+
   
   const box = new THREE.Box3().setFromObject(currentObject);
   const size = new THREE.Vector3();
@@ -1088,12 +1090,8 @@ function enterCutMode(){
   currentObject.position.y = Math.max(currentObject.position.y, planeY + correction + 0.001);
   
   const sc = document.getElementById('scissorCursor');
-  console.log(sc);
-  console.log('1090');
   if(sc){
      sc.style.display = 'block';
-     console.log('scissors');
-
   }
   viewerDiv.addEventListener('pointermove', _onCutPointerMove);
   viewerDiv.addEventListener('pointerdown', _onCutPointerDown);
