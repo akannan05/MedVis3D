@@ -3,18 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <title>Medical OBJ Viewer</title>
-<link rel="stylesheet" href="/css/styles.css">
+<link rel="stylesheet" href="/css/styles-new.css">
 </head>
 <body>
 
-<div id="selector"></div>
-<!-- Folder view container (pop-down modal created/populated by JS) -->
+<!-- TOP selector container: vertical organ carousel sits to the left of centered horizontal carousel -->
+<div id="selectorContainer">
+  <div id="organCarouselContainer"></div>
+  <div id="idCarouselContainer"></div>
+</div>
+
+<!-- Folder view container (unused but preserved) -->
 <div id="folderView"></div>
 
 <div id="viewer" style="display:none;">
     <button id="backBtn">⟵</button>
 </div>
 
-<script type="module" src="/js/main.js"></script>
+<script type="module" src="/js/main-new.js"></script>
 </body>
 </html>

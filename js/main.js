@@ -1,6 +1,8 @@
 import * as THREE from 'three';
+
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { loadOBJ } from './loader.js';
+
 import '../css/styles.css';
 
 // =============================================================================
@@ -15,10 +17,16 @@ const folderViewDiv = document.getElementById('folderView');
 let scene, camera, renderer, controls, currentObject;
 
 // Global State
-let models = [];
+let models = []; 
 let currentModelName = null;
+
 let mode = 'default'; // 'default' | 'cut'
 let _sceneInitialized = false;
+
+let _moveModeInitialized = false;
+let _cutModeInitialized = false;
+let _measureModeInitialized = false;
+let _inspectModeInitialized = false;
 
 // Physics State
 let _velocity = new THREE.Vector3();
@@ -365,7 +373,7 @@ function createGUI(modelName) {
   const sidebar = document.createElement('div');
   sidebar.id = 'leftSidebar';
   
-  const buttons = ['Move', 'Cut', 'Measure', 'Inspect'];
+  const buttons = ['Move', 'Cut', 'Measure', 'Inspect', 'Reset'];
   buttons.forEach(btnText => {
     const btn = document.createElement('button');
     btn.className = 'sidebar-btn';
@@ -373,7 +381,11 @@ function createGUI(modelName) {
     btn.title = `Click to enter ${btnText} mode`;
     btn.onclick = (e) => {
       e.stopPropagation();
-      handleToolClick(btnText);
+      if(btnText === 'Reset'){
+        resetToOriginal();
+      } else {
+        handleToolClick(btnText);
+      }
     };
     sidebar.appendChild(btn);
   });
@@ -673,6 +685,42 @@ async function _reloadCurrentModel(){
     controls.update();
   }catch(err){
     console.error('Failed to reload model', err);
+  }
+}
+
+// Clear environment and load an "original" model from the JSON list (simple heuristic)
+async function resetToOriginal(){
+  try{
+    // Clear current scene state
+    _clearScene();
+
+    // Ensure models list is loaded
+    if(!models || models.length === 0){
+      try{ await fetchModels(); }catch(e){}
+    }
+
+    // Determine original model candidate from currentModelName (organ prefix)
+    let target = currentModelName;
+    if(currentModelName && models && models.length > 0){
+      const m = currentModelName.match(/^(.+?)_/);
+      if(m){
+        const organ = m[1];
+        const found = models.find(x => x.startsWith(organ + '_'));
+        if(found) target = found;
+      }
+    }
+
+    // Fallback: first model in JSON
+    if(!target && models && models.length > 0) target = models[0];
+
+    if(target){
+      // Load via loadViewer to fully initialize
+      await loadViewer(target);
+    } else {
+      console.warn('No model available to reset to.');
+    }
+  }catch(err){
+    console.error('resetToOriginal failed', err);
   }
 }
 
@@ -1040,7 +1088,8 @@ function enterCutMode(){
   const half = Math.max(maxXZ, 5);
   _cutState.orthoHalf = half;
   const orthoCam = new THREE.OrthographicCamera(-half, half, half, -half, 0.1, 1000);
-  orthoCam.position.set(center.x + half * 0.25, planeY + half * 1.2, center.z + half * 0.25);
+  // place camera directly overhead, looking straight down at the object's center
+  orthoCam.position.set(center.x, planeY + half * 2.0, center.z);
   orthoCam.up.set(0, 1, 0);
   orthoCam.lookAt(center.x, planeY, center.z);
   orthoCam.updateProjectionMatrix();
@@ -1048,11 +1097,13 @@ function enterCutMode(){
   camera = orthoCam;
   if(controls && controls.dispose) controls.dispose();
   
-  // Create orbit-like controls for cut mode with right-click for rotation
+  // Create orbit-like controls for cut mode but lock rotation/pan for a stable overhead view
   controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.05;
   controls.autoRotate = false;
+  controls.enableRotate = false;
+  controls.enablePan = false;
   controls.mouseButtons = {
     LEFT: null,           // Disable left click (we use it for cutting)
     MIDDLE: THREE.MOUSE.MIDDLE,
@@ -1071,9 +1122,10 @@ function enterCutMode(){
   
   const sc = document.getElementById('scissorCursor');
   if(sc) sc.style.display = 'block';
-  viewerDiv.addEventListener('pointermove', _onCutPointerMove);
-  viewerDiv.addEventListener('pointerdown', _onCutPointerDown);
-  window.addEventListener('pointerup', _onCutPointerUp);
+  // Use hover-to-preview and single-click-to-slice instead of drag-cut
+  _createSelectLine();
+  viewerDiv.addEventListener('pointermove', _onCutHoverMove);
+  viewerDiv.addEventListener('pointerdown', _onCutClick);
 }
 
 function exitCutMode(){
@@ -1102,9 +1154,15 @@ function exitCutMode(){
   if(sc) sc.remove();
   const svg = document.getElementById('cutLineSvg');
   if(svg) svg.remove();
-  viewerDiv.removeEventListener('pointermove', _onCutPointerMove);
-  viewerDiv.removeEventListener('pointerdown', _onCutPointerDown);
-  window.removeEventListener('pointerup', _onCutPointerUp);
+  viewerDiv.removeEventListener('pointermove', _onCutHoverMove);
+  viewerDiv.removeEventListener('pointerdown', _onCutClick);
+  _removeSelectLine();
+
+  // Remove any cap meshes created by slicing
+  if(_cutState.caps){
+    _cutState.caps.forEach(cap => { try{ scene.remove(cap); }catch(e){} });
+    _cutState.caps = null;
+  }
 
   if(_cutState.clones){
     _cutState.clones.forEach(c => {
@@ -1114,6 +1172,129 @@ function exitCutMode(){
   }
   if(currentObject) currentObject.visible = true;
   renderer.localClippingEnabled = false;
+}
+
+// =============================================================================
+// CUT MODE: Select-line (hover) + click-to-slice helpers
+// =============================================================================
+
+function _createSelectLine(){
+  _removeSelectLine();
+  if(!scene) return;
+  const material = new THREE.LineBasicMaterial({ color: 0x00ff66, linewidth: 4 });
+  const points = [ new THREE.Vector3(0, -1, 0), new THREE.Vector3(0, 1, 0) ];
+  const geo = new THREE.BufferGeometry().setFromPoints(points);
+  const line = new THREE.Line(geo, material);
+  line.visible = false;
+  line.frustumCulled = false;
+  line.renderOrder = 999;
+  scene.add(line);
+  _cutState.selectLine = line;
+}
+
+function _removeSelectLine(){
+  if(_cutState.selectLine){
+    try{ scene.remove(_cutState.selectLine); }catch(e){}
+    if(_cutState.selectLine.geometry) _cutState.selectLine.geometry.dispose();
+    _cutState.selectLine = null;
+  }
+}
+
+function _onCutHoverMove(e){
+  if(!scene || !camera || !currentObject) return;
+  const rect = viewerDiv.getBoundingClientRect();
+  const mouse = new THREE.Vector2();
+  mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  _cutHandlers.raycaster.setFromCamera(mouse, camera);
+  const intersects = _cutHandlers.raycaster.intersectObject(currentObject, true);
+  if(intersects && intersects.length > 0){
+    const p = intersects[0].point.clone();
+    const box = new THREE.Box3().setFromObject(currentObject);
+    const minY = box.min.y;
+    const maxY = box.max.y;
+    if(!_cutState.selectLine) _createSelectLine();
+    const line = _cutState.selectLine;
+    const pos = line.geometry.attributes.position.array;
+    pos[0] = p.x; pos[1] = minY; pos[2] = p.z;
+    pos[3] = p.x; pos[4] = maxY; pos[5] = p.z;
+    line.geometry.attributes.position.needsUpdate = true;
+    line.visible = true;
+  } else {
+    if(_cutState.selectLine) _cutState.selectLine.visible = false;
+  }
+}
+
+function _onCutClick(e){
+  if(e.button !== 0) return;
+  if(!scene || !camera || !currentObject) return;
+  const rect = viewerDiv.getBoundingClientRect();
+  const mouse = new THREE.Vector2();
+  mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  _cutHandlers.raycaster.setFromCamera(mouse, camera);
+  const intersects = _cutHandlers.raycaster.intersectObject(currentObject, true);
+  if(intersects && intersects.length > 0){
+    const point = intersects[0].point.clone();
+    _performCutAtPoint(point);
+  }
+}
+
+function _performCutAtPoint(point){
+  if(!currentObject || !scene) return;
+  // For now use a world-X vertical cut plane (can be extended later)
+  const normal = new THREE.Vector3(1,0,0);
+  const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(normal, point);
+  renderer.localClippingEnabled = true;
+  currentObject.visible = false;
+  if(_cutState.clones && _cutState.clones.length > 0){
+    _cutState.clones.forEach(c => scene.remove(c));
+  }
+  _cutState.clones = [];
+  const source = currentObject;
+  const cloneA = source.clone(true);
+  const cloneB = source.clone(true);
+  _applyClippingMaterial(cloneA, plane);
+  const planeNeg = plane.clone().negate();
+  _applyClippingMaterial(cloneB, planeNeg);
+  cloneA.position.copy(source.position);
+  cloneA.quaternion.copy(source.quaternion);
+  cloneA.scale.copy(source.scale);
+  cloneA.updateMatrixWorld(true);
+  cloneB.position.copy(source.position);
+  cloneB.quaternion.copy(source.quaternion);
+  cloneB.scale.copy(source.scale);
+  cloneB.updateMatrixWorld(true);
+  // Add caps (approximate) to cover cut area
+  const box = new THREE.Box3().setFromObject(source);
+  const boxSize = new THREE.Vector3(); box.getSize(boxSize);
+  const capSize = Math.max(boxSize.x, boxSize.z) * 3 + boxSize.y;
+  const capGeo = new THREE.PlaneGeometry(capSize, capSize);
+  const capMat = new THREE.MeshPhongMaterial({ color: 0xdddddd, side: THREE.DoubleSide });
+  // orient cap to plane normal
+  const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,0,1), plane.normal.clone().normalize());
+  const capA = new THREE.Mesh(capGeo, capMat.clone());
+  capA.position.copy(point);
+  capA.quaternion.copy(q);
+  capA.position.addScaledVector(plane.normal, 0.001);
+  capA.renderOrder = 1000;
+  const capB = new THREE.Mesh(capGeo, capMat.clone());
+  capB.position.copy(point);
+  capB.quaternion.copy(q);
+  capB.position.addScaledVector(plane.normal, -0.001);
+  capB.renderOrder = 1000;
+  scene.add(capA);
+  scene.add(capB);
+  // separate clones slightly
+  const gap = Math.max(0.02, source.scale.length() * 0.002) + 1.0;
+  cloneA.position.addScaledVector(plane.normal, gap);
+  cloneB.position.addScaledVector(plane.normal, -gap);
+  scene.add(cloneA);
+  scene.add(cloneB);
+  _cutState.clones = [cloneA, cloneB];
+  _cutState.caps = [capA, capB];
+  _cutState.plane = plane;
+  _cutState.cutPerformed = true;
 }
 
 function _readyForCut(){
