@@ -448,7 +448,7 @@ function createGUI(modelName) {
   sep.className = 'sidebar-separator';
   sidebar.appendChild(sep);
   
-  const buttons = ['Move', 'Cut', 'Inspect'];
+  const buttons = ['Move', 'Cut', 'Inspect', 'Measure'];
   buttons.forEach(btnText => {
     const btn = document.createElement('button');
     btn.className = 'sidebar-btn';
