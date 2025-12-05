@@ -608,6 +608,7 @@ function toggleBoundingBox() {
 // =============================================================================
 
 async function loadViewer(modelName) {
+  console.log('611 ' + modelName);
   viewerDiv.style.display = 'block';
   currentModelName = modelName;
 

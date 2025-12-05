@@ -178,7 +178,7 @@ class NiftiHandler(http.server.BaseHTTPRequestHandler):
                 trimesh.smoothing.filter_laplacian(mesh, iterations=20, lamb=0.7)
             
             # Taubin smoothing to prevent shrinkage
-            trimesh.smoothing.filter_taubin(mesh, iterations=50, lamb=0.5, mu=-0.53)
+            trimesh.smoothing.filter_taubin(mesh, iterations=50, lamb=0.5, nu=-0.53)
             
             # Final Humphrey pass for organic smoothness
             trimesh.smoothing.filter_humphrey(mesh, iterations=30, alpha=0.1, beta=0.6)
