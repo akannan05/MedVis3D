@@ -534,7 +534,7 @@ async function handleToolClick(tool) {
     if (mode === 'measure') exitMeasureMode();
     if (mode === 'slice') exitSliceMode();
     mode = 'default';
-    if (currentModelName) await _reloadCurrentModel();
+    //if (currentModelName) await _reloadCurrentModel();
   }
 }
 
