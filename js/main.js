@@ -518,8 +518,8 @@ async function handleToolClick(tool) {
     if(mode === 'cut') exitCutMode();
     enterSliceMode();
 
-    if(currentModelName) await loadViewer(currentModelName);
-    enterCutMode();
+    //if(currentModelName) await loadViewer(currentModelName);
+    //enterCutMode();
   } else if (tool === 'Move') {
     if(mode === 'measure') exitMeasureMode();
     if(mode === 'cut') exitCutMode();
