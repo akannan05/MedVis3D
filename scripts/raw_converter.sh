@@ -3,7 +3,7 @@
 
 # Base path to datasets
 BASE_PATH="../assets/data"
-ENV_PATH="../.venv/Scripts/python.exe"
+ENV_PATH="../174a-venv/bin/python"
 
 # Loop over all directories inside the base path
 for DATA_DIR in "$BASE_PATH"/*/; do

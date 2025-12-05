@@ -28,6 +28,7 @@ let models = [];
 let currentModelName = null;
 let mode = 'default'; // 'default' | 'cut' | 'move' | 'measure'
 let _sceneInitialized = false;
+let visibleClone = true;  // true = cloneA, false = cloneB
 
 // Physics State
 let _velocity = new THREE.Vector3();
@@ -176,7 +177,7 @@ function _updateRaycastPoint(e, cb){
   const objectToRaycast = (_cutState.clones && _cutState.clones.length > 0) 
     ? _cutState.clones 
     : currentObject;
-  
+    
   const intersects = _cutHandlers.raycaster.intersectObject(objectToRaycast, true);
   
   if(intersects && intersects.length > 0){
@@ -284,14 +285,14 @@ function _performCut(pStart, pEnd){
   cloneA.scale.copy(sourceObject.scale);
   cloneA.updateMatrixWorld(true);
   cloneA.position.addScaledVector(normal, gap);
-  cloneA.visible = true;
+  cloneA.visible = visibleClone;
 
   cloneB.position.copy(sourceObject.position);
   cloneB.quaternion.copy(sourceObject.quaternion);
   cloneB.scale.copy(sourceObject.scale);
   cloneB.updateMatrixWorld(true);
   cloneB.position.addScaledVector(normal, -gap);
-  cloneB.visible = true;
+  cloneB.visible = !visibleClone;
 
   scene.add(cloneA);
   scene.add(cloneB);
@@ -317,6 +318,19 @@ function _applyClippingMaterial(obj, plane) {
       node.material = Array.isArray(node.material) ? clonedMats : clonedMats[0];
     }
   });
+}
+
+// press C to toggle between the 2 slices
+window.addEventListener('keydown', cloneChange);
+function cloneChange(event){
+  if(event.key === 'C' || event.key === 'c'){
+    visibleClone = !visibleClone;
+    console.log(visibleClone);
+    if(_cutState.clones && _cutState.clones.length > 0){
+      _cutState.clones[0].visible = visibleClone;
+      _cutState.clones[1].visible = !visibleClone
+    }
+  }
 }
 
 // =============================================================================
@@ -503,6 +517,9 @@ async function handleToolClick(tool) {
     if(mode === 'move') exitMoveMode();
     if(mode === 'cut') exitCutMode();
     enterSliceMode();
+
+    if(currentModelName) await loadViewer(currentModelName);
+    enterCutMode();
   } else if (tool === 'Move') {
     if(mode === 'measure') exitMeasureMode();
     if(mode === 'cut') exitCutMode();
@@ -2992,7 +3009,7 @@ function _updatePhysics(delta){
   }
 
   if(mode === 'cut') {
-    _constrainToBounds();
+   // _constrainToBounds();
   }
 
   _updateBoundingBoxVisualization();
